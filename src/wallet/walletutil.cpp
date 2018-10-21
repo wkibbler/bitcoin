@@ -49,6 +49,16 @@ static bool IsBerkeleyBtree(const fs::path& path)
     return data == 0x00053162 || data == 0x62310500;
 }
 
+static fs::path GetRelativePath(const fs::path& path, const fs::path& base)
+{
+    fs::path relative, parent = path;
+    while (!parent.empty() && parent != base) {
+      relative = parent.filename() / relative;
+      parent = parent.parent_path();
+    }
+    return relative;
+}
+
 std::vector<fs::path> ListWalletDir()
 {
     const fs::path wallet_dir = GetWalletDir();
@@ -57,7 +67,7 @@ std::vector<fs::path> ListWalletDir()
     for (auto it = fs::recursive_directory_iterator(wallet_dir); it != end(it); ++it) {
         if (it->status().type() == fs::directory_file && IsBerkeleyBtree(it->path() / "wallet.dat")) {
             // Found a directory which contains wallet.dat btree file, add it as a wallet.
-            paths.emplace_back(fs::relative(it->path(), wallet_dir));
+            paths.emplace_back(GetRelativePath(it->path(), wallet_dir));
         } else if (it.level() == 0 && it->symlink_status().type() == fs::regular_file && IsBerkeleyBtree(it->path())) {
             if (it->path().filename() == "wallet.dat") {
                 // Found top-level wallet.dat btree file, add top level directory ""
@@ -68,7 +78,7 @@ std::vector<fs::path> ListWalletDir()
                 // software will never create these files but will allow them to be
                 // opened in a shared database environment for backwards compatibility.
                 // Add it to the list of available wallets.
-                paths.emplace_back(fs::relative(it->path(), wallet_dir));
+                paths.emplace_back(GetRelativePath(it->path(), wallet_dir));
             }
         }
     }
